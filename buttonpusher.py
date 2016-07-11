@@ -13,15 +13,19 @@ stream = open(os.path.join(os.path.dirname(__file__), 'config.yml'), 'r')
 config = yaml.load(stream)
 
 port             = int(config['port'])
-servo_gpio       = config['servo_gpio']
-servo_off        = int(config['servo_off'])
-servo_on         = int(config['servo_on'])
-servo_press_time = float(config['servo_press_time'])
+opto_gpio        = config['opto_gpio']
+opto_press_time = float(config['opto_press_time'])
 twilio_sid       = config['twilio_sid']
 number_whitelist = config['number_whitelist']
 
-servo = PWM.Servo()
-servo.set_servo(servo_gpio, servo_off)
+rpio.setMode('physical');
+var rpio = require('rpio');
+
+/*
+ * Set the initial state to low.  
+ */
+ 
+rpio.open(opto_gpio, rpio.OUTPUT, rpio.LOW);
 
 class ServerHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -38,22 +42,22 @@ class ServerHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     
     sid = form.getvalue('AccountSid')
     if sid != twilio_sid:
-      logging.warning('incorrect SID, get out of here')
+      logging.warning('Incorrect Twilio Account SID')
       return
     logging.warning('SID looks good')
 
     number = form.getvalue("From")
     if number not in number_whitelist:
-      logging.warning('number not on whitelist, no door for you')
+      logging.warning('access denied: number not recognized')
       return
     logging.warning('number is on whitelist, welcome home')
 
     command = form.getvalue('Body').lower()
     if command == 'open':
       logging.warning('opening door')
-      servo.set_servo(servo_gpio, servo_on)
-      sleep(servo_press_time)
-      servo.set_servo(servo_gpio, servo_off)
+      rpio.write(opto_gpio, rpio.HIGH)
+      sleep(opto_press_time)
+      rpio.write(opto_gpio, rpio.LOW)
     else:
       logging.warning('command not found: ' + command)
 
